@@ -1,0 +1,16 @@
+# FlagGate proposal: ship the winner to everyone at once.
+# The gate BLOCKS this: variant_b jumps 10% -> 100% in one change.
+flag: checkout-cta
+environment: development
+author: aman
+approver: harsh
+approved: true
+reason: "Ship the winner to everyone at once"
+change:
+  enabled: true
+  value: "Buy now"
+  variants:
+    - key: control
+      weight: 0
+    - key: variant_b
+      weight: 100

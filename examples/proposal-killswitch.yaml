@@ -1,0 +1,11 @@
+# FlagGate proposal: turn off the safety flag for a migration.
+# The gate BLOCKS this: kill-switch flags are never turned off by
+# a proposal.
+flag: kill-switch
+environment: development
+author: aman
+approver: harsh
+approved: true
+reason: "Turn off the safety flag for the migration"
+change:
+  enabled: false

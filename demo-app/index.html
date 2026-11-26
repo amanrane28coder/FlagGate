@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlagGate demo — checkout</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #faf9f5; color: #1f1e1d; margin: 0; padding: 3rem 1rem; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  .eyebrow { font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: #8a8781; margin-bottom: 0.75rem; }
+  h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 1.9rem; margin: 0 0 0.5rem; }
+  .sub { color: #55524d; margin: 0 0 1.5rem; line-height: 1.55; }
+  .card { background: #fff; border: 1px solid #e8e4de; border-radius: 14px; padding: 1.75rem; box-shadow: 0 8px 30px rgba(31,30,29,0.06); }
+  .product { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 1rem; border-bottom: 1px solid #f0ede8; margin-bottom: 1.25rem; }
+  .product .name { font-weight: 600; }
+  .product .price { color: #55524d; }
+  #cta { background: #d97757; color: #fff; border: 0; border-radius: 8px;
+         padding: 0.9rem 1.6rem; font-size: 1.1rem; cursor: pointer; width: 100%; }
+  #cta:hover { background: #c96a4b; }
+  #status { margin-top: 1.25rem; font-size: 0.95rem; line-height: 1.6; color: #55524d; }
+  #status b { color: #1f1e1d; font-variant-numeric: tabular-nums; }
+  #log { margin-top: 0.75rem; color: #8a8781; font-size: 0.88rem; white-space: pre-wrap; font-family: ui-monospace, monospace; }
+  code { background: #f4f1ec; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.92em; }
+  .foot { margin-top: 1rem; font-size: 0.82rem; color: #8a8781; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">FlagGate · self-hosted Flagsmith</div>
+  <h1>Checkout</h1>
+  <p class="sub">The button below is driven by the Flagsmith flag
+     <code>checkout-cta</code> on the self-hosted instance — the flag
+     FlagGate manages. FlagGate applies a proposed change only after the
+     gate passes and a human approves it; this page shows the result.
+     Switch identities with <code>?identity=alice</code> in the URL to
+     see a different variant.</p>
+  <div class="card">
+    <div class="product"><span class="name">Pro plan</span><span class="price">₹999 / month</span></div>
+    <button id="cta">Buy now</button>
+    <div id="status">waiting for Flagsmith…</div>
+    <div id="log"></div>
+  </div>
+  <p class="foot">Demo page for the FlagGate Track 3 entry — Toggle Wars, Flagsmith Experimentation Hackathon. Serve with <code>python3 -m http.server 8003</code> in this directory.</p>
+</div>
+<script type="module">
+  import flagsmith from 'https://cdn.jsdelivr.net/npm/@flagsmith/flagsmith@12.4.0/+esm';
+  // FILL IN AFTER THE ADMIN STEP (see README): the environment key and
+  // flag name from the self-hosted dashboard at http://localhost:8002/.
+  const ENV_KEY = 'REPLACE_WITH_ENV_KEY';
+  const FLAG_NAME = 'REPLACE_WITH_FLAG_NAME';
+  // Flag values the live flag returns, mapped to their variant keys.
+  const VARIANT_BY_VALUE = { 'Buy now': 'control', 'Start free trial': 'variant_b' };
+  const params = new URLSearchParams(location.search);
+  const identity = params.get('identity') || 'demo-user';
+  const status = document.getElementById('status');
+  const log = (m) => { document.getElementById('log').textContent += '\n' + m; };
+  if (ENV_KEY.startsWith('REPLACE_') || FLAG_NAME.startsWith('REPLACE_')) {
+    status.textContent = 'Not configured yet: set ENV_KEY + FLAG_NAME in demo-app/index.html (see README).';
+  } else {
+    try {
+      await flagsmith.init({
+        environmentID: ENV_KEY,
+        api: 'http://localhost:8002/api/v1/',
+        identity: identity,
+      });
+      const value = flagsmith.getValue(FLAG_NAME);
+      const variant = VARIANT_BY_VALUE[value] || 'unknown';
+      document.getElementById('cta').textContent = value;
+      status.innerHTML =
+        'identity: <b>' + identity + '</b><br>' +
+        'flag ' + FLAG_NAME + ': <b>' + value + '</b><br>' +
+        'variant: <b>' + variant + '</b>';
+      log('flag ' + FLAG_NAME + ' = ' + JSON.stringify(value) +
+          ' (variant ' + variant + ', identity ' + identity + ')');
+      document.getElementById('cta').addEventListener('click', () => {
+        flagsmith.track('signup_completed');
+        log('event sent: signup_completed');
+      });
+    } catch (e) {
+      status.textContent = 'Flagsmith not initialised: ' + e.message;
+    }
+  }
+</script>
+</body>
+</html>

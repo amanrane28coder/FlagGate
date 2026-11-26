@@ -1,0 +1,5 @@
+audit.log
+flagsmith.json
+*.key
+__pycache__/
+*.pyc

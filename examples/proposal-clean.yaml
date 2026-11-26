@@ -1,0 +1,15 @@
+# FlagGate proposal: roll the new CTA copy to 50% of users.
+flag: checkout-cta
+environment: development
+author: aman
+approver: harsh
+approved: true
+reason: "Roll the new CTA copy to 50% for the weekend test"
+change:
+  enabled: true
+  value: "Buy now"
+  variants:
+    - key: control
+      weight: 50
+    - key: variant_b
+      weight: 50
