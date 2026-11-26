@@ -117,7 +117,7 @@ def check(proposal, state, now=None):
         if any(not isinstance(w, (int, float)) for w in weights):
             return ["variant weights must be numbers"], skipped
         total = sum(weights)
-        if total != 100:
+        if abs(total - 100) > 0.001:
             reasons.append("variant weights sum to %s, not 100" % total)
         current = state.get("current_weights", {})
         for v in variants:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Tests for demo-app/ — the static page serves and carries the
-self-hosted placeholders (env key + flag name) to fill after the
-admin step."""
+"""Tests for demo-app/ — the static page serves and is wired to the
+self-hosted env key + flag (live proof Nov 27: alice control, eve
+variant_b, 50/50)."""
 
 import socket
 import subprocess
@@ -55,9 +55,10 @@ def main():
         if html is not None:
             check("demo points at the self-hosted API",
                   "http://localhost:8002/api/v1/" in html, html[:500])
-            check("demo has env-key + flag placeholders",
-                  "REPLACE_WITH_ENV_KEY" in html
-                  and "REPLACE_WITH_FLAG_NAME" in html, html[:500])
+            check("demo is wired to a real env key + flag",
+                  "REPLACE_WITH_ENV_KEY" not in html
+                  and "REPLACE_WITH_FLAG_NAME" not in html
+                  and "checkout-cta" in html, html[:500])
             check("demo keeps the flip ids",
                   'id="cta"' in html and 'id="status"' in html
                   and 'id="log"' in html, html[:500])

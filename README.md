@@ -54,15 +54,20 @@ the original note was wrong:
 
 | Port | What it actually is |
 |------|---------------------|
-| **8002** | **Flagsmith — frontend + Management API** (`http://localhost:8002/`, health `{"ok":true}`, API docs `/api/v1/docs/`) |
+| **8002** | **Flagsmith — frontend + Management API** (`http://localhost:8002/`, health returns the Django "System status" page, API docs `/api/v1/docs/`) |
 | 3100 / 5173 | **Rakazo, a different stack** — not Flagsmith. Do not create the admin there. |
 | 8000 | **ExpAgent demo server** (Track 2) — `python -m http.server` in `~/expagent/demo-app`. Do not stop it. |
 
-The Flagsmith container maps `8002:8000` in `~/flagsmith-local/docker-compose.yml`
-(it was `8000:8000`, which collided with the ExpAgent demo server, so the
-API was unreachable from the host until the remap). After a Mac restart:
-`docker compose up -d` in `~/flagsmith-local`, then check
-`http://localhost:8002/health`.
+Or bring up your own instance from this repo — `docker-compose.yml` is a
+sanitized copy of the official Flagsmith compose (same services, ports
+8002/8001, experimentation on). Replace every `CHANGE-ME` value first,
+then `docker compose up -d`; the admin, project and flag steps below
+are still manual browser steps.
+
+The live stack maps `8002:8000` (it was `8000:8000`, which collided with
+the ExpAgent demo server, so the API was unreachable from the host until
+the remap). After a Mac restart: `docker compose up -d` in
+`~/flagsmith-local`, then check `http://localhost:8002/health`.
 
 ## One-command run
 
@@ -70,17 +75,18 @@ API was unreachable from the host until the remap). After a Mac restart:
 ./tests/run_tests.sh          # full suite (yamlmini + gate + probe + apply + log + demo)
 ```
 
-End-to-end on one proposal (dry-run — nothing touches Flagsmith):
+End-to-end on one proposal (dry-run — nothing touches Flagsmith).
+`state-live.json` mirrors the live flag (50/50, Nov 27); `state-example.json`
+is the probe's fixture (90/10) — do not edit it, the jump case depends on it:
 
 ```sh
-python3 gate/gate.py examples/proposal-clean.yaml examples/state-example.json
+python3 gate/gate.py examples/proposal-clean.yaml examples/state-live.json
 python3 gate/probe.py                            # 7 adversarial + 1 clean proposal
-python3 agent/apply.py examples/proposal-clean.yaml --state examples/state-example.json
-python3 agent/apply.py examples/proposal-clean.yaml --state examples/state-example.json --approve  # needs live credentials (below)
+python3 agent/apply.py examples/proposal-clean.yaml --state examples/state-live.json
 python3 agent/log.py                             # every decision, one line each
 ```
 
-Live apply (after the admin step below):
+Live apply (already run — see Live proof above):
 
 ```sh
 python3 agent/apply.py examples/proposal-clean.yaml \
@@ -220,18 +226,14 @@ the `checkout-cta` flag, and the flip is proven live: alice → control
 ("Buy now"), eve → variant_b ("Start free trial"). Try
 `http://localhost:8003/?identity=alice` vs `?identity=eve`.
 
-## Video outline (~2 min)
+## Video script
 
-Record silent screen (Cmd+Shift+5, mic OFF) + separate voiceover; merge
-with ffmpeg. Do not run the agent live on camera — replay the verified run.
-
-- 0:00 Problem: self-hosted Flagsmith has no change approval or audit
-  log — show a flag flipped straight in the dashboard with no record.
-- 0:30 Gate: submit a bad change (rollout 10% → 100%) — BLOCK, reason shown.
-- 1:00 Human approves a clean change in the log; applier applies it;
-  demo app behaviour flips.
-- 1:30 Audit log: every decision listed, before/after values.
-- 1:50 Close: "FlagGate. One docker compose up. Repo on screen."
+Full shot list + narration: `VIDEO-SCRIPT.md` (~2:10, cold-open flip,
+gap, gate BLOCK, apply evidence, close). Record silent screen
+(Cmd+Shift+5, mic OFF) + separate voiceover; merge with ffmpeg. Do not
+run the agent live on camera — replay the verified run. Do NOT re-run
+`apply.py --approve` on camera (duplicate audit line) and do NOT flip
+the flag in the dashboard (breaks the live 50/50).
 
 ## Files
 
@@ -243,7 +245,10 @@ agent/apply.py       human gate + update-flag PATCH + audit + rollback
 agent/log.py         pretty-print audit.log, one decision per line
 examples/            proposal-clean.yaml, proposal-jump.yaml,
                      proposal-killswitch.yaml, state-example.json
+                     (probe fixture, 90/10), state-live.json (live, 50/50)
 demo-app/index.html  static checkout page on the self-hosted instance
+docker-compose.yml   sanitized official Flagsmith compose (CHANGE-ME secrets)
+VIDEO-SCRIPT.md      video shot list + narration (~2:10)
 tests/               run_tests.sh + test_yamlmini.py, test_gate.py,
                      test_probe.py, test_apply.py, test_log.py, test_demo.py
 audit.log            appended by apply.py runs (gitignored, never committed)

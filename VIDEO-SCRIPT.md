@@ -5,9 +5,10 @@ Method: silent screen (Cmd+Shift+5, mic OFF) + separate voiceover, merge:
 Upload unlisted to YouTube; link needed before Sun Nov 29, 20:00 IST.
 
 Story (the Dibs lesson): the interesting part isn't the flag flip — it's
-that no change reaches production without a human approving it and a
-record existing. Self-hosted Flagsmith ships neither; FlagGate supplies
-both without forking Flagsmith.
+that no change *through FlagGate* reaches production without a human
+approving it and a record existing. Self-hosted Flagsmith ships neither;
+FlagGate supplies both without forking Flagsmith. (A dashboard flip still
+bypasses FlagGate — it is a process tool, not a lock; say so if asked.)
 
 ## Shots
 
@@ -40,19 +41,22 @@ flags — and a bad change stops here, before it touches anything."
 
 ### 4. Approve + apply evidence (1:00–1:30)
 Do NOT re-run `apply.py --approve` on camera — the 50/50 is already live
-and a re-run appends a duplicate audit line. Instead:
-- Dry-run apply (no `--approve`): `python3 agent/apply.py
-  examples/proposal-clean.yaml --api-key <key> --env-key <env-key>
-  --feature-id 1 --option-ids '{"variant_b": 1}'` — prints gate PASS +
-  before/after, writes nothing.
-- `python3 agent/log.py` — the approved line from the live run:
+and a re-run appends a duplicate audit line. Instead, in this order:
+- `python3 agent/log.py` FIRST — the approved line from the live run:
   `APPROVED checkout-cta, author=aman approver=harsh, before
   [variant_b:0, control:100] after [variant_b:50, control:50]`.
+  (A dry-run appends its own audit line, so log.py must come before it.)
+- Dry-run apply (no `--approve`): set the key off-camera first —
+  `export FLAGATE_API_KEY=<org token>` (never type the real key on
+  screen; apply.py reads it from the environment) — then
+  `python3 agent/apply.py examples/proposal-clean.yaml --env-key <env-key>
+  --feature-id 1 --option-ids '{"variant_b": 1}'` — prints gate PASS +
+  before/after, writes nothing.
 - Flag state: dashboard or API showing variant_b at weight 50.
-Narration: "A clean change still needs a human who isn't the author. The
-applier re-runs the gate, checks the approval, writes through the API,
-verifies what the server published, and only then writes the audit line.
-That 50/50 went live with a record."
+Narration: "A clean change through FlagGate still needs a human who isn't
+the author. The applier re-runs the gate, checks the approval, writes
+through the API, verifies what the server published, and only then writes
+the audit line. That 50/50 went live with a record."
 
 ### 5. Flip + audit (1:30–1:50)
 Back to the two demo tabs (alice / eve), then the log line once more.
