@@ -141,23 +141,29 @@ kill-switch lists, staging lists and stale timestamps can come from),
 live credentials (`--api-key` + `--env-key` + `--feature-id` +
 `--option-ids`), or both (fixture metadata + fresh API values).
 
-## Honest status — what is NOT yet proven live
+## Live proof — proven on the self-hosted instance (Nov 27, 00:05 IST)
 
-- **The apply path is NOT yet live-proven.** No admin, project, flag or
-  API token exists on the self-hosted instance yet (creating them is a
-  browser step — below). The applier is built and fake-tested (a local
-  HTTP server stands in for the Management API, including a 401 case and
-  a response-mismatch case), but no real PATCH has run against the
-  self-hosted instance. The README will say so until it has.
-- **What IS verified live:** the stack is up (API + frontend on :8002),
-  the update-flag endpoint exists in this build's schema with the exact
-  request shape the applier sends, and the API enforces auth (401
-  without a key). The gate, probe runner, applier (fake-tested) and log
-  are all green: 92/92 tests on VM + Mac.
-- **The demo flip is NOT yet live.** `demo-app/index.html` points at the
-  self-hosted API (`http://localhost:8002/api/v1/`) but carries
-  `REPLACE_WITH_ENV_KEY` / `REPLACE_WITH_FLAG_NAME` placeholders until
-  the admin step creates them. It serves; the flip waits on the admin step.
+- **Apply path, proven live.** Flag `checkout-cta` (id 1) created via
+  the Management API; variant `variant_b` ("Start free trial", option
+  id 1). `apply.py examples/proposal-clean.yaml --approve`: gate PASS,
+  before {variant_b 0, control 100} → after {variant_b 50, control 50},
+  `APPLIED`. The published state was read back from the server
+  (variants `[{id 1, weight 50}]`) before the audit line was written.
+  The audit line is in `audit.log` (gitignored, local only).
+- **Demo flip, proven live.** `demo-app/index.html` is wired to the
+  Development environment key and the flag, serving 200 on :8003.
+  12 identities checked against the SDK API: 8 serve control
+  ("Buy now"), 4 serve variant_b ("Start free trial"). Demo pair:
+  alice (control) + eve (variant_b).
+- **What is also verified live:** the stack is up (API + frontend on
+  :8002), the update-flag endpoint exists in this build's schema with
+  the exact request shape the applier sends, and the API enforces auth
+  (401 without a key). The gate, probe runner, applier and log are all
+  green: 92/92 tests on VM + Mac.
+- **Not yet confirmed by a human click:** whether the sidebar
+  audit-log / change-request entries ask for Enterprise (the gap
+  premise). Flagsmith's own docs say they are Enterprise/Scale-Up-only;
+  the click is the last confirmation.
 
 ## Admin step — 5 minutes in the browser (Aman)
 
@@ -171,28 +177,32 @@ At `http://localhost:8002/` (NOT :5173 — that is Rakazo):
 3. **Create 1 flag** in the project's Development environment —
    name `checkout-cta`, type multivariate, default value `Buy now`,
    add variant `variant_b` with value `Start free trial`, weight 0.
-   Note the flag id (from the URL) and the variant_b option id.
+   (Done Nov 27: flag id 1, variant_b option id 1. `control` is a
+   reserved variant key — control is the default value plus the
+   unallocated weight, and the applier already handles that.)
 4. **Confirm the gap** — look at the sidebar: audit log / change
    requests are shown but license-gated (clicking one asks for
    Enterprise). That is the gap FlagGate fills; note what you see.
 5. **Copy two keys** — the environment key (Development environment
-   settings) and a management API key (Account Settings → API keys, or
-   the organisation settings). Paste both into the live-apply block
-   below — never into the repo.
+   settings) and a management API key from **Organisation Settings →
+   API Access** (NOT Account Settings → API keys: that key is rejected
+   by the Management API on both self-hosted and Cloud). Paste both
+   into the live-apply block below — never into the repo.
 
-Then run the live proof (Saturday):
+Live proof — already run (Nov 27, 00:05 IST):
 
 ```sh
 cd ~/flaggate
 python3 agent/apply.py examples/proposal-clean.yaml \
   --api-key <management API key> --env-key <environment key> \
-  --feature-id <flag id> --option-ids '{"variant_b": <option id>}' --approve
+  --feature-id 1 --option-ids '{"variant_b": 1}' --approve
 python3 agent/log.py
 ```
 
-Expected: `APPLIED`, the demo app's button flips for the variant
+Result: `APPLIED`, the demo app's button flips for the variant
 identity, and `log.py` shows the approved line. If the PATCH 401s, the
-API key is wrong; if it 404s, the flag id is wrong.
+API key is wrong (it must be the Organisation API token, step 5); if
+it 404s, the flag id is wrong.
 
 ## Demo app (demo-app/)
 
@@ -205,10 +215,10 @@ cd demo-app && python3 -m http.server 8003
 ```
 
 It reads the flag for the identity in the URL and shows the variant
-copy on the button. Until the placeholders are filled it shows
-"Not configured yet" — that is honest, not broken. After the admin step,
-fill in `ENV_KEY` + `FLAG_NAME` in `demo-app/index.html` and the flip
-works: alice → control, carol → variant_b (or whatever the rollout is).
+copy on the button. It is wired to the Development environment key and
+the `checkout-cta` flag, and the flip is proven live: alice → control
+("Buy now"), eve → variant_b ("Start free trial"). Try
+`http://localhost:8003/?identity=alice` vs `?identity=eve`.
 
 ## Video outline (~2 min)
 
