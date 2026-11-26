@@ -160,7 +160,9 @@ verified present in this build's own OpenAPI schema
 (`http://localhost:8002/api/v1/swagger.json`): `UpdateFlagRequest` takes
 `environment_default` with `enabled`, `value` (`{type, value}`) and
 `variants` (`[{id, weight}]`). It is versioning-agnostic — the same
-request on v1 and v2 environments. Auth is
+request on v1 and v2 environments. There is no stable alternative: the
+legacy `featurestates` PUT returns 400 on v2-versioned environments, so
+the update-flag endpoint is the write path, not a shortcut. Auth is
 `Authorization: Api-Key <management API key>` (Flagsmith's own docs; the
 local schema declares no security scheme, and the API 401s without a key).
 The environment key in the URL is the SDK key for the environment; the
