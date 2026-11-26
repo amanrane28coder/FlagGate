@@ -5,9 +5,40 @@ approves it, and only then does it touch Flagsmith — with every decision
 written to an append-only audit log. Release Gate's pattern, applied to
 Flagsmith flag changes on a self-hosted instance.
 
-**Track 3: Build on Open Source Flagsmith — PS5 + GTA 6.** Judging:
-self-hosted Flagsmith; integrations and plugins; developer tools; easy
-for others to reuse.
+**Track 3: Build on Open Source Flagsmith — PS5 + GTA 6.**
+
+## Live proof (verified Nov 27, 00:05 IST)
+
+- **Apply, proven live** — flag `checkout-cta` (id 1) created via the
+  Management API; variant `variant_b` ("Start free trial", option id 1).
+  `apply.py --approve`: gate PASS, before {variant_b 0, control 100} →
+  after {variant_b 50, control 50}, `APPLIED`. The published state was
+  read back from the server before the audit line was written.
+- **Demo flip, proven live** — 12 identities checked: 8 serve control
+  ("Buy now"), 4 serve variant_b. Demo pair: alice + eve. Demo serves
+  200 on :8003.
+- **Tests: 92/92 pass** (VM + Mac). **One-command setup:**
+  `docker-compose.yml` in this repo spins up the whole stack.
+- **Not yet confirmed by a human click:** whether the sidebar audit-log /
+  change-request entries ask for Enterprise (the gap premise).
+  Flagsmith's own docs say they are Enterprise/Scale-Up-only.
+
+## What it demonstrates
+
+- **Use of Flagsmith** — a real self-hosted instance; the flag does real
+  work end to end (create → gate → apply → server-verified 50/50 →
+  per-identity SDK copy) through the update-flag endpoint.
+- **Impact** — the gap is real: self-hosted Flagsmith ships no usable
+  approval or audit trail, so any dashboard user can flip a flag to
+  production with no record. FlagGate supplies both, without forking
+  Flagsmith.
+- **Creativity** — the approval is a file (proposal YAML), the gate is
+  deterministic and testable, and the applier verifies what the server
+  published before it audits — it refuses to audit a lie.
+- **Demo video** — `VIDEO-SCRIPT.md`, ~2:10: cold-open flip → gap →
+  gate BLOCK → apply evidence.
+- **Reuse** — `docker-compose.yml` (sanitized, CHANGE-ME secrets),
+  README, starter templates in `examples/`, 92/92 tests.
 
 ## The gap
 
@@ -171,13 +202,12 @@ live credentials (`--api-key` + `--env-key` + `--feature-id` +
   premise). Flagsmith's own docs say they are Enterprise/Scale-Up-only;
   the click is the last confirmation.
 
-## Admin step — 5 minutes in the browser (Aman)
+## Setup — 5 minutes in the browser
 
 At `http://localhost:8002/` (NOT :5173 — that is Rakazo):
 
 1. **Create the admin account** — first visit offers account creation.
-   Use the same Google account as the Cloud project if offered
-   (`rane.aman28@gmail.com`); otherwise any admin login works.
+   Any admin login works.
 2. **Create 1 project** (OSS self-hosted allows 1 project per
    organisation) — name it `flaggate`.
 3. **Create 1 flag** in the project's Development environment —
