@@ -5,12 +5,19 @@
 # Replace EVERY CHANGE-ME value before first run; never commit real
 # secrets. After `docker compose up -d`, the admin, project and flag
 # steps in the README are still manual browser steps.
+# Images are pinned by digest to the exact image verified running
+# locally 2026-11-27 (sha256:48905c66…); the `latest` tag is
+# informational only — the digest is the pin, so a re-pull cannot
+# silently change the build under you. Ports bind to localhost only;
+# open them to 0.0.0.0 only if you need remote access.
 
 x-flagsmith-env: &flagsmith-env
   DATABASE_URL: postgres://postgres:CHANGE-ME@postgres:5432/flagsmith
   USE_POSTGRES_FOR_ANALYTICS: 'true' # Store API and Flag Analytics data in Postgres
   ENVIRONMENT: production # set to 'production' in production.
-  DJANGO_ALLOWED_HOSTS: '*' # Change this in production
+  DJANGO_ALLOWED_HOSTS: 'localhost,127.0.0.1' # was '*' in the official
+    # compose; '*' accepts any Host header (cache-poisoning / host-
+    # header attacks). Localhost only is right for this demo.
   FLAGSMITH_DOMAIN: localhost:8002 # Change this in production
   DJANGO_SECRET_KEY: CHANGE-ME # Change this in production
   WAREHOUSE_CREDENTIALS_SECRET: CHANGE-ME
@@ -40,7 +47,7 @@ services:
       start_period: 20s
 
   migrate-db:
-    image: docker.flagsmith.com/flagsmith/flagsmith:latest
+    image: docker.flagsmith.com/flagsmith/flagsmith:latest@sha256:48905c664152d8ae2c843ec9cee72ff197e7caff6e91b959bb851a235915ea35
     command:
       - migrate
     environment:
@@ -52,26 +59,26 @@ services:
         condition: service_healthy
 
   flagsmith:
-    image: docker.flagsmith.com/flagsmith/flagsmith:latest
+    image: docker.flagsmith.com/flagsmith/flagsmith:latest@sha256:48905c664152d8ae2c843ec9cee72ff197e7caff6e91b959bb851a235915ea35
     restart: unless-stopped
     command:
       - serve
     environment:
       <<: *flagsmith-env
     ports:
-      - 8002:8000
+      - 127.0.0.1:8002:8000
     depends_on:
       migrate-db:
         condition: service_completed_successfully
 
   # Only needed if TASK_RUN_METHOD is TASK_PROCESSOR (see above).
   flagsmith-task-processor:
-    image: docker.flagsmith.com/flagsmith/flagsmith:latest
+    image: docker.flagsmith.com/flagsmith/flagsmith:latest@sha256:48905c664152d8ae2c843ec9cee72ff197e7caff6e91b959bb851a235915ea35
     restart: unless-stopped
     environment:
       <<: *flagsmith-env
     ports:
-      - 8001:8000
+      - 127.0.0.1:8001:8000
     depends_on:
       migrate-db:
         condition: service_completed_successfully

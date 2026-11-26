@@ -78,6 +78,55 @@ def main():
               "2 decision(s), 1 malformed line(s) skipped" in r.stdout,
               r.stdout)
 
+        # hash chain: chained rows verify, tampering is caught
+        sys.path.insert(0, str(ROOT / "agent"))
+        import audit as audit_mod
+        chained = Path(tmp) / "chained.log"
+        for row in ROWS:
+            audit_mod.append_chained(str(chained), dict(row))
+        r = subprocess.run([sys.executable, str(LOG),
+                            "--audit-log", str(chained)],
+                           capture_output=True, text=True, cwd=ROOT)
+        check("chained log exits 0", r.returncode == 0, r.stderr)
+        check("chained log reports chain OK",
+              "chain: OK (2 chained)" in r.stdout, r.stdout)
+
+        lines = chained.read_text().splitlines()
+        tampered = json.loads(lines[1])
+        tampered["verdict"] = "approved"  # was "refused": silent edit
+        lines[1] = json.dumps(tampered)
+        chained.write_text("\n".join(lines) + "\n")
+        r = subprocess.run([sys.executable, str(LOG),
+                            "--audit-log", str(chained)],
+                           capture_output=True, text=True, cwd=ROOT)
+        check("tampered log exits 1", r.returncode == 1, r.stderr)
+        check("tampered log names the broken line",
+              "chain BROKEN at line 2" in r.stdout, r.stdout)
+
+        # deletion: dropping the first chained line breaks the next prev
+        chained.unlink()
+        for row in ROWS:
+            audit_mod.append_chained(str(chained), dict(row))
+        lines = chained.read_text().splitlines()
+        chained.write_text(lines[1] + "\n")
+        r = subprocess.run([sys.executable, str(LOG),
+                            "--audit-log", str(chained)],
+                           capture_output=True, text=True, cwd=ROOT)
+        check("deleted line exits 1", r.returncode == 1, r.stderr)
+        check("deleted line names the broken line",
+              "chain BROKEN at line 1" in r.stdout, r.stdout)
+
+        # legacy first line (pre-chain) + chained second: exits 0, noted
+        legacy = Path(tmp) / "legacy.log"
+        legacy.write_text(json.dumps(ROWS[0]) + "\n")
+        audit_mod.append_chained(str(legacy), dict(ROWS[1]))
+        r = subprocess.run([sys.executable, str(LOG),
+                            "--audit-log", str(legacy)],
+                           capture_output=True, text=True, cwd=ROOT)
+        check("legacy first line exits 0", r.returncode == 0, r.stderr)
+        check("legacy first line is noted",
+              "1 legacy (unverified)" in r.stdout, r.stdout)
+
     print("test_log: %d passed, %d failed" % (passed, failed))
     return 0 if failed == 0 else 1
 

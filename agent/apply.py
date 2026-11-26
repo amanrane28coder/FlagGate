@@ -51,7 +51,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "gate"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gate as gate_mod
+import audit as audit_mod
 
 DEFAULT_API_BASE = "http://localhost:8002/api"
 DEFAULT_AUDIT_LOG = "audit.log"
@@ -68,8 +70,8 @@ def utcnow():
 
 
 def append_audit(path, entry):
-    with open(path, "a") as f:
-        f.write(json.dumps(entry) + "\n")
+    """Append one audit line, hash-chained (see agent/audit.py)."""
+    audit_mod.append_chained(path, entry)
 
 
 def api_request(api_base, api_key, method, path, body=None):
@@ -403,6 +405,31 @@ def main(argv):
         print("apply error: --approve needs live credentials "
               "(--api-key + --env-key + --feature-id)", file=sys.stderr)
         return 2
+
+    # ---- 4b. re-read the live state right before the write. The gate
+    # checked the state from step 1; if the flag moved since (another
+    # dashboard user, another process), the gate's picture is stale and
+    # this write would silently overwrite their change — refuse instead.
+    # The endpoint has no compare-and-swap, so this narrows the race
+    # window; it does not close it (see README, Limits).
+    if live:
+        try:
+            fresh = state_from_api(api_base, api_key, env_key,
+                                   feature_id, option_ids, proposal)
+        except RuntimeError as e:
+            fail_audit(e)
+            print("apply error: re-read before write failed: %s" % e,
+                  file=sys.stderr)
+            return 2
+        fresh_before = {
+            "enabled": fresh.get("enabled"),
+            "value": fresh.get("current_value"),
+            "weights": dict(fresh.get("current_weights", {})),
+        }
+        if fresh_before != before:
+            return refuse("flag state changed since the gate check "
+                          "(re-read before write): %s -> %s"
+                          % (before, fresh_before))
 
     # ---- 5. PATCH, then verify the published state ----
     try:

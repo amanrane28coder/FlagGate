@@ -79,6 +79,10 @@ STATE = {
 class FakeFlagsmith(BaseHTTPRequestHandler):
     calls = []
     mismatch = False
+    # Set state_change=True to make the flag move between the gate-check
+    # GET and the pre-write re-read GET (2nd GET returns new weights).
+    state_change = False
+    get_count = 0
 
     def log_message(self, *args):
         pass
@@ -106,11 +110,15 @@ class FakeFlagsmith(BaseHTTPRequestHandler):
                 self._send(401, {"detail": "Authentication credentials "
                                             "were not provided."})
                 return
+            FakeFlagsmith.get_count += 1
+            weight = 10.0
+            if FakeFlagsmith.state_change and FakeFlagsmith.get_count >= 2:
+                weight = 80.0  # someone else moved the flag meanwhile
             self._send(200, {
                 "environment_default": {
                     "enabled": True,
                     "value": {"type": "string", "value": "Buy now"},
-                    "variants": [{"id": 1, "weight": 10.0}]},
+                    "variants": [{"id": 1, "weight": weight}]},
                 "segment_overrides": []})
         else:
             self._send(404, {"detail": "Not found."})
@@ -334,7 +342,32 @@ def main():
               rows and rows[-1]["verdict"] == "failed",
               "audit: %s" % rows)
 
-        # 10. --help: usage, no HTTP
+        # 10. flag moves between the gate check and the write -> exit 1,
+        #     no PATCH (the pre-write re-read catches the race)
+        FakeFlagsmith.calls = []
+        FakeFlagsmith.state_change = True
+        FakeFlagsmith.get_count = 0
+        p, s = write_files(tmp)
+        try:
+            r = run_apply(tmp, [str(p), "--state", str(s), "--approve"]
+                          + live + ["--audit-log", audit])
+        finally:
+            FakeFlagsmith.state_change = False
+        check("state change exits 1", r.returncode == 1,
+              "exit %d" % r.returncode)
+        check("state change is reported",
+              "state changed since the gate check" in r.stdout + r.stderr,
+              r.stdout + r.stderr)
+        check("state change makes no PATCH",
+              all(c["method"] != "PATCH" for c in FakeFlagsmith.calls),
+              "calls: %s" % FakeFlagsmith.calls)
+        rows = read_audit(tmp)
+        check("state change appends audit verdict refused",
+              rows and rows[-1]["verdict"] == "refused"
+              and "changed" in rows[-1].get("reason", ""),
+              "audit: %s" % rows)
+
+        # 11. --help: usage, no HTTP
         FakeFlagsmith.calls = []
         r = run_apply(tmp, ["--help"])
         check("--help exits 0", r.returncode == 0, r.stderr)

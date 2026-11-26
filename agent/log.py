@@ -4,16 +4,24 @@
 The audit log is FlagGate's answer to the missing audit trail on
 self-hosted Flagsmith: every proposal decision — dry-run, approved,
 refused, failed — is one JSON line in audit.log (see agent/apply.py).
-This file reads it back for a human.
+This file reads it back for a human, and verifies the hash chain
+(see agent/audit.py): an edited, deleted or reordered line breaks the
+chain, and this command exits 1 instead of printing a clean trail.
+Lines written before chaining are shown as legacy (unverified).
 
 Usage:
     python3 agent/log.py [--audit-log FILE]
 
-Exit codes: 0 ok (including an empty/missing log), 2 error.
+Exit codes: 0 ok (including an empty/missing log), 1 chain broken,
+2 error.
 """
 
 import json
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import audit as audit_mod
 
 
 def fmt_weights(weights):
@@ -62,6 +70,7 @@ def main(argv):
     except FileNotFoundError:
         print("no decisions yet (no %s)" % audit_log)
         return 0
+    ok, broken_index, legacy, chained = audit_mod.verify_lines(lines)
     shown = 0
     bad = 0
     for raw in lines:
@@ -84,6 +93,14 @@ def main(argv):
     print("%d decision(s)%s" % (shown,
                                 (", %d malformed line(s) skipped" % bad)
                                 if bad else ""))
+    if not ok:
+        print("chain BROKEN at line %d — entries from here on are not "
+              "trustworthy (edited, deleted or reordered)"
+              % (broken_index + 1))
+        return 1
+    print("chain: OK (%d chained%s)"
+          % (chained,
+             (", %d legacy (unverified)" % legacy) if legacy else ""))
     return 0
 
 

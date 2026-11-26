@@ -2,7 +2,7 @@
 
 A flag change is a file, not a dashboard click. FlagGate gates it, a human
 approves it, and only then does it touch Flagsmith — with every decision
-written to an append-only audit log. Release Gate's pattern, applied to
+written to a hash-chained, append-only audit log. Release Gate's pattern, applied to
 Flagsmith flag changes on a self-hosted instance.
 
 **Track 3: Build on Open Source Flagsmith — PS5 + GTA 6.**
@@ -152,6 +152,17 @@ all three hold: the proposal is approved, an approver is named, and the
 approver is not the author. The reviewer recommends only; the approver
 logs the decision — the Release Gate roles, verbatim.
 
+Limits, stated plainly: the approval is a process control, not a
+cryptographic one. The applier enforces approver ≠ author and audits
+who approved, but it cannot verify the approver's identity — anyone
+with write access to the proposal file or the terminal can approve.
+And FlagGate does not prevent direct dashboard changes: it gives a
+team an approval + audit path, and a dashboard flip bypasses it. What
+it guarantees is that no change goes through FlagGate without an
+approver who is not the author, and that every change through
+FlagGate leaves a hash-chained audit line (`log.py` verifies the
+chain and exits 1 on a broken one).
+
 ## The write path (agent/apply.py)
 
 The write goes through Flagsmith's experimental update-flag endpoint
@@ -170,7 +181,10 @@ API key is the management key from the dashboard. They are different keys.
 
 The applier reads the flag's current state with the update-flag GET
 (fresh weights/value/enabled), re-runs the gate, checks the human
-approval, then PATCHes. It verifies the published state from the PATCH
+approval, then PATCHes. Before the PATCH it re-reads the live state
+once more and refuses if the flag moved since the gate check — the
+endpoint has no compare-and-swap, so this narrows the race window; it
+does not close it. It verifies the published state from the PATCH
 response — weights, value, enabled — and refuses to audit a lie: a
 mismatch exits 2 with verdict `failed`. The rollback is the previous
 weights/value as a PATCH, printed on every apply.
