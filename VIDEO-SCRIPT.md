@@ -23,14 +23,15 @@ Demo server must be up: if :8003 is dead, restart it first:
 
 ### 2. Problem — the gap (0:12–0:35)
 Dashboard sidebar at localhost:8002: **Audit Log** and **Feature Change
-Requests**. Click one — it asks for Enterprise. Narration: "This is
-self-hosted Flagsmith. It has no change approval and no audit log — those
-are Enterprise-only. Anyone with dashboard access can flip a flag straight
-to production, and there is no record of who did it, who approved it, or
-what the value was before."
+Requests**. Click one — expected: it asks for Enterprise. Narration:
+"This is self-hosted Flagsmith. It has no change approval and no audit
+log — those are Enterprise-only. Anyone with dashboard access can flip
+a flag straight to production, and there is no record of who did it, who
+approved it, or what the value was before."
 Say "no *usable* approval or audit trail", never "the buttons don't exist"
-— they exist, they are license-gated. Confirm the exact screen before
-recording; if the click shows something else, say what it shows.
+— they exist, they are license-gated. **Do the click before recording;
+if it shows something else, say what it shows — the narration above is
+the expected outcome, not yet confirmed.**
 
 ### 3. Gate BLOCK (0:35–1:00)
 `python3 gate/probe.py` live — safe, local, no writes. The 10% → 100%
@@ -65,9 +66,10 @@ log saying who approved it and what changed."
 
 ### 6. Close (1:50–2:10)
 Repo on screen: `github.com/amanrane28coder/FlagGate`. Narration:
-"FlagGate. One docker compose up. The gate, the approval, and the audit
-trail self-hosted Flagsmith doesn't ship." Mention 92/92 tests in one
-line if it fits, or as an on-screen label.
+"FlagGate. One docker compose up spins up the stack — then five manual
+browser steps (admin, project, flag, two keys) in the README. The gate,
+the approval, and the audit trail self-hosted Flagsmith doesn't ship."
+Mention 104/104 tests in one line if it fits, or as an on-screen label.
 
 ## Do NOT on camera
 

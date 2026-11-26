@@ -302,6 +302,24 @@ def main():
         check("unapproved refused (exit 1)", r.returncode == 1,
               "exit %d" % r.returncode)
 
+        # 6b. approval refusal: no author — an authorless proposal
+        #     used to pass vacuously (approver != None). Now refused.
+        FakeFlagsmith.calls = []
+        bad = CLEAN.replace("author: aman\n", "")
+        p5, _ = write_files(tmp, proposal=bad)
+        r = run_apply(tmp, [str(p5), "--state", str(s), "--approve"]
+                      + live + ["--audit-log", audit])
+        check("authorless proposal refused (exit 1)", r.returncode == 1,
+              "exit %d" % r.returncode)
+        check("authorless proposal makes no PATCH",
+              all(c["method"] != "PATCH" for c in FakeFlagsmith.calls),
+              "calls: %s" % FakeFlagsmith.calls)
+        rows = read_audit(tmp)
+        check("authorless proposal appends audit verdict refused",
+              rows and rows[-1]["verdict"] == "refused"
+              and "no author" in (rows[-1].get("reason") or ""),
+              "audit: %s" % rows)
+
         # 7. live mode without an API key -> exit 2
         r = run_apply(tmp, [str(p), "--env-key", "TEST_ENV",
                             "--feature-id", "1", "--audit-log", audit])

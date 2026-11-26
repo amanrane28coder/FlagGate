@@ -12,6 +12,8 @@
 # open them to 0.0.0.0 only if you need remote access.
 
 x-flagsmith-env: &flagsmith-env
+  # The password here must match POSTGRES_PASSWORD below — change
+  # both together, or the stack fails on a Postgres auth error.
   DATABASE_URL: postgres://postgres:CHANGE-ME@postgres:5432/flagsmith
   USE_POSTGRES_FOR_ANALYTICS: 'true' # Store API and Flag Analytics data in Postgres
   ENVIRONMENT: production # set to 'production' in production.
@@ -35,6 +37,7 @@ services:
     image: postgres:15.5-alpine
     restart: unless-stopped
     environment:
+      # Must match the password in DATABASE_URL above.
       POSTGRES_PASSWORD: CHANGE-ME
       POSTGRES_DB: flagsmith
     volumes:

@@ -116,6 +116,20 @@ def main():
         check("deleted line names the broken line",
               "chain BROKEN at line 1" in r.stdout, r.stdout)
 
+        # tail truncation: dropping the LAST line leaves a valid chain.
+        # Documented limit (audit.py docstring + README): a chain with
+        # no external anchor cannot detect a shortened log.
+        chained.unlink()
+        for row in ROWS:
+            audit_mod.append_chained(str(chained), dict(row))
+        lines = chained.read_text().splitlines()
+        chained.write_text(lines[0] + "\n")
+        r = subprocess.run([sys.executable, str(LOG),
+                            "--audit-log", str(chained)],
+                           capture_output=True, text=True, cwd=ROOT)
+        check("tail truncation is NOT detected (documented limit)",
+              r.returncode == 0 and "chain: OK" in r.stdout, r.stdout)
+
         # legacy first line (pre-chain) + chained second: exits 0, noted
         legacy = Path(tmp) / "legacy.log"
         legacy.write_text(json.dumps(ROWS[0]) + "\n")

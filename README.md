@@ -17,8 +17,9 @@ Flagsmith flag changes on a self-hosted instance.
 - **Demo flip, proven live** — 12 identities checked: 8 serve control
   ("Buy now"), 4 serve variant_b. Demo pair: alice + eve. Demo serves
   200 on :8003.
-- **Tests: 92/92 pass** (VM + Mac). **One-command setup:**
-  `docker-compose.yml` in this repo spins up the whole stack.
+- **Tests: 104/104 pass** (VM + Mac). **One-command stack setup:**
+  `docker-compose.yml` in this repo spins up the whole stack — admin,
+  project and flag are 5 manual browser steps (see Setup).
 - **Not yet confirmed by a human click:** whether the sidebar audit-log /
   change-request entries ask for Enterprise (the gap premise).
   Flagsmith's own docs say they are Enterprise/Scale-Up-only.
@@ -38,7 +39,7 @@ Flagsmith flag changes on a self-hosted instance.
 - **Demo video** — `VIDEO-SCRIPT.md`, ~2:10: cold-open flip → gap →
   gate BLOCK → apply evidence.
 - **Reuse** — `docker-compose.yml` (sanitized, CHANGE-ME secrets),
-  README, starter templates in `examples/`, 92/92 tests.
+  README, starter templates in `examples/`, 104/104 tests.
 
 ## The gap
 
@@ -148,9 +149,9 @@ YAML/JSON).
 
 The proposal names an `author` and an `approver`, and carries
 `approved: true`. The applier refuses (exit 1, audited as `refused`) unless
-all three hold: the proposal is approved, an approver is named, and the
-approver is not the author. The reviewer recommends only; the approver
-logs the decision — the Release Gate roles, verbatim.
+all four hold: the proposal is approved, an author is named, an approver
+is named, and the approver is not the author. The reviewer recommends
+only; the approver logs the decision — the Release Gate roles, verbatim.
 
 Limits, stated plainly: the approval is a process control, not a
 cryptographic one. The applier enforces approver ≠ author and audits
@@ -161,7 +162,10 @@ team an approval + audit path, and a dashboard flip bypasses it. What
 it guarantees is that no change goes through FlagGate without an
 approver who is not the author, and that every change through
 FlagGate leaves a hash-chained audit line (`log.py` verifies the
-chain and exits 1 on a broken one).
+chain and exits 1 on a broken one). One limit of the chain: it
+detects edits, deletions and reordering of all but the last line —
+deleting the last line(s) leaves a valid chain, so tail truncation
+needs an external anchor (e.g. a published line count).
 
 ## The write path (agent/apply.py)
 
@@ -171,9 +175,13 @@ verified present in this build's own OpenAPI schema
 (`http://localhost:8002/api/v1/swagger.json`): `UpdateFlagRequest` takes
 `environment_default` with `enabled`, `value` (`{type, value}`) and
 `variants` (`[{id, weight}]`). It is versioning-agnostic — the same
-request on v1 and v2 environments. There is no stable alternative: the
-legacy `featurestates` PUT returns 400 on v2-versioned environments, so
-the update-flag endpoint is the write path, not a shortcut. Auth is
+request on v1 and v2 environments. There is no stable single-call
+alternative verified against this build's schema: the legacy
+`featurestates` PUT returns 400 on v2-versioned environments, so
+the update-flag endpoint is the write path, not a shortcut. The
+feature-versioning API (create a feature version, then publish it) is
+the documented stable v2 write mechanism, but it is a multi-step flow
+not yet implemented here. Auth is
 `Authorization: Api-Key <management API key>` (Flagsmith's own docs; the
 local schema declares no security scheme, and the API 401s without a key).
 The environment key in the URL is the SDK key for the environment; the
@@ -212,7 +220,7 @@ live credentials (`--api-key` + `--env-key` + `--feature-id` +
   :8002), the update-flag endpoint exists in this build's schema with
   the exact request shape the applier sends, and the API enforces auth
   (401 without a key). The gate, probe runner, applier and log are all
-  green: 92/92 tests on VM + Mac.
+  green: 104/104 tests on VM + Mac.
 - **Not yet confirmed by a human click:** whether the sidebar
   audit-log / change-request entries ask for Enterprise (the gap
   premise). Flagsmith's own docs say they are Enterprise/Scale-Up-only;
@@ -233,8 +241,9 @@ At `http://localhost:8002/` (NOT :5173 — that is Rakazo):
    reserved variant key — control is the default value plus the
    unallocated weight, and the applier already handles that.)
 4. **Confirm the gap** — look at the sidebar: audit log / change
-   requests are shown but license-gated (clicking one asks for
-   Enterprise). That is the gap FlagGate fills; note what you see.
+   requests are shown but license-gated (expected: clicking one asks
+   for Enterprise — note what you actually see; the click is the last
+   confirmation of the gap). That is the gap FlagGate fills.
 5. **Copy two keys** — the environment key (Development environment
    settings) and a management API key from **Organisation Settings →
    API Access** (NOT Account Settings → API keys: that key is rejected
@@ -272,6 +281,12 @@ the `checkout-cta` flag, and the flip is proven live: alice → control
 ("Buy now"), eve → variant_b ("Start free trial"). Try
 `http://localhost:8003/?identity=alice` vs `?identity=eve`.
 
+Reusing this repo: replace `ENV_KEY` and `FLAG_NAME` in
+`demo-app/index.html` with your own environment key and flag name, or
+pass them in the URL (`?env_key=YOUR_KEY&flag=YOUR_FLAG`). The values
+in the file are the author's live demo key/flag — a fresh clone's demo
+points at the author's instance until you replace them.
+
 ## Video script
 
 Full shot list + narration: `VIDEO-SCRIPT.md` (~2:10, cold-open flip,
@@ -288,6 +303,7 @@ gate/gate.py         proposal YAML + flag state -> PASS / BLOCK / error
 gate/yamlmini.py     strict YAML-subset parser (stdlib has no YAML)
 gate/probe.py        7 adversarial + 1 clean proposal through the real gate
 agent/apply.py       human gate + update-flag PATCH + audit + rollback
+agent/audit.py       hash-chained append + chain verification
 agent/log.py         pretty-print audit.log, one decision per line
 examples/            proposal-clean.yaml, proposal-jump.yaml,
                      proposal-killswitch.yaml, state-example.json
@@ -302,7 +318,7 @@ audit.log            appended by apply.py runs (gitignored, never committed)
 
 ## Tests
 
-`./tests/run_tests.sh` — 92 checks, all real subprocess runs. The applier
+`./tests/run_tests.sh` — 104 checks, all real subprocess runs. The applier
 is tested against a tiny stdlib HTTP server that stands in for the
 Management API (records requests, enforces the Api-Key header, echoes
 weights back, and can be told to echo wrong weights — the applier must

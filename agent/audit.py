@@ -20,7 +20,10 @@ legacy line is still anchored into the chain.
 This is tamper-EVIDENCE, not tamper-proofing: anyone with write access
 to the file can rewrite the whole chain. What it gives is detection —
 an edited, deleted or reordered line breaks the chain at a named line
-number, and `log.py` exits 1 instead of printing a clean trail. A line
+number, and `log.py` exits 1 instead of printing a clean trail. One
+limit: deleting the LAST line(s) leaves a valid chain — a chain with
+no external anchor cannot detect a shortened log. Tail truncation
+needs an external anchor (e.g. a published line count). A line
 that is not parseable JSON is skipped by the chain check (log.py still
 warns about it loudly) — the chain catches silent edits to valid
 lines; garbage is loud on its own.

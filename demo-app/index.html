@@ -46,11 +46,16 @@
   import flagsmith from 'https://cdn.jsdelivr.net/npm/@flagsmith/flagsmith@12.4.0/+esm';
   // FILL IN AFTER THE ADMIN STEP (see README): the environment key and
   // flag name from the self-hosted dashboard at http://localhost:8002/.
-  const ENV_KEY = 'ZxkzBZoPnLGG7sQEaSBFY2';
-  const FLAG_NAME = 'checkout-cta';
+  // Reusing this repo? Replace the two values below, or pass them in
+  // the URL instead: ?env_key=YOUR_KEY&flag=YOUR_FLAG. The embedded
+  // values are the author's live demo key/flag (a client SDK key,
+  // public by design) — a fresh clone points at the author's instance
+  // until you replace them.
+  const params = new URLSearchParams(location.search);
+  const ENV_KEY = params.get('env_key') || 'ZxkzBZoPnLGG7sQEaSBFY2';
+  const FLAG_NAME = params.get('flag') || 'checkout-cta';
   // Flag values the live flag returns, mapped to their variant keys.
   const VARIANT_BY_VALUE = { 'Buy now': 'control', 'Start free trial': 'variant_b' };
-  const params = new URLSearchParams(location.search);
   const identity = params.get('identity') || 'demo-user';
   const status = document.getElementById('status');
   const log = (m) => { document.getElementById('log').textContent += '\n' + m; };

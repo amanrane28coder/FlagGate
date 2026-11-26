@@ -355,6 +355,8 @@ def main(argv):
     if proposal.get("approved") is not True:
         return refuse("proposal is not approved (approved: true + an "
                       "approver are required)")
+    if not author:
+        return refuse("proposal names no author")
     if not approver:
         return refuse("proposal names no approver")
     if approver == author:
